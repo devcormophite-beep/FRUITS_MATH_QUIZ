@@ -8,13 +8,14 @@ using UnityEngine.SceneManagement;
 public class InitialSetupManager : MonoBehaviour
 {
     [Header("Scènes")]
-    public string languageSelectionSceneName = "LanguageSelection"; // Ajout de la scène LanguageSelection
+    public string languageSelectionSceneName = "LanguageSelection";
     public string usernameSceneName = "UsernameSetup";
     public string avatarSelectionSceneName = "AvatarSelection";
     public string countrySelectionSceneName = "CountrySelection";
     public string mainMenuSceneName = "MainMenu";
 
     [Header("Paramètres")]
+    public bool requireLanguage = true;
     public bool requireUsername = true;
     public bool requireAvatar = true;
     public bool requireCountry = true;
@@ -30,16 +31,6 @@ public class InitialSetupManager : MonoBehaviour
             ResetAllSetup();
         }
 
-        // Vérifier si c'est le premier démarrage
-        if (!PlayerPrefs.HasKey("FirstLaunch"))
-        {
-            Debug.Log("Premier démarrage détecté. Chargement de la scène LanguageSelection.");
-            PlayerPrefs.SetInt("FirstLaunch", 1); // Marquer le premier démarrage comme terminé
-            PlayerPrefs.Save();
-            SceneManager.LoadScene(languageSelectionSceneName);
-            return;
-        }
-
         StartCoroutine(CheckSetupProgress());
     }
 
@@ -49,7 +40,19 @@ public class InitialSetupManager : MonoBehaviour
         Debug.Log("VÉRIFICATION DU SETUP INITIAL");
         Debug.Log("========================================");
 
-        // Vérifier le pseudo
+        // 1. Vérifier la langue EN PREMIER
+        bool hasLanguage = PlayerPrefs.HasKey("GameLanguage") && !string.IsNullOrEmpty(PlayerPrefs.GetString("GameLanguage"));
+        Debug.Log($"Langue configurée: {hasLanguage}");
+
+        if (requireLanguage && !hasLanguage)
+        {
+            Debug.Log("→ Chargement de la scène: Language Selection");
+            yield return new WaitForSeconds(delayBetweenScenes);
+            SceneManager.LoadScene(languageSelectionSceneName);
+            yield break;
+        }
+
+        // 2. Vérifier le pseudo
         bool hasUsername = PlayerPrefs.HasKey("PlayerName") && !string.IsNullOrEmpty(PlayerPrefs.GetString("PlayerName"));
         Debug.Log($"Pseudo configuré: {hasUsername}");
 
@@ -61,7 +64,7 @@ public class InitialSetupManager : MonoBehaviour
             yield break;
         }
 
-        // Vérifier l'avatar
+        // 3. Vérifier l'avatar
         bool hasAvatar = PlayerPrefs.HasKey("SelectedAvatarId") && PlayerPrefs.GetInt("SelectedAvatarId", -1) > 0;
         Debug.Log($"Avatar configuré: {hasAvatar}");
 
@@ -73,7 +76,7 @@ public class InitialSetupManager : MonoBehaviour
             yield break;
         }
 
-        // Vérifier le pays
+        // 4. Vérifier le pays
         bool hasCountry = PlayerPrefs.HasKey("SelectedCountryId") && PlayerPrefs.GetInt("SelectedCountryId", -1) >= 0;
         Debug.Log($"Pays configuré: {hasCountry}");
 
@@ -85,13 +88,18 @@ public class InitialSetupManager : MonoBehaviour
             yield break;
         }
 
-        // Tout est configuré, aller au menu principal
+        // ✅ TOUT est configuré, aller au menu principal
         Debug.Log("✓ Setup complet!");
+        Debug.Log($"  - Langue: {PlayerPrefs.GetString("GameLanguage")}");
         Debug.Log($"  - Pseudo: {PlayerPrefs.GetString("PlayerName")}");
         Debug.Log($"  - Avatar ID: {PlayerPrefs.GetInt("SelectedAvatarId")}");
         Debug.Log($"  - Pays ID: {PlayerPrefs.GetInt("SelectedCountryId")}");
         Debug.Log("→ Chargement du menu principal");
-        Debug.Log("========================================\\n");
+        Debug.Log("========================================\n");
+
+        // Marquer le setup comme complété (optionnel, pour stats)
+        PlayerPrefs.SetInt("SetupCompleted", 1);
+        PlayerPrefs.Save();
 
         yield return new WaitForSeconds(delayBetweenScenes);
         SceneManager.LoadScene(mainMenuSceneName);
@@ -99,33 +107,46 @@ public class InitialSetupManager : MonoBehaviour
 
     void ResetAllSetup()
     {
+        PlayerPrefs.DeleteKey("GameLanguage");
         PlayerPrefs.DeleteKey("PlayerName");
         PlayerPrefs.DeleteKey("SelectedAvatarId");
         PlayerPrefs.DeleteKey("SelectedCountryId");
-        PlayerPrefs.DeleteKey("HasCompletedSetup");
-        PlayerPrefs.DeleteKey("FirstLaunch"); // Réinitialiser le premier démarrage
+        PlayerPrefs.DeleteKey("SetupCompleted");
+        PlayerPrefs.DeleteKey("FirstLaunch");
+        PlayerPrefs.DeleteKey("HasSelectedLanguage");
         PlayerPrefs.Save();
-        Debug.Log("Setup réinitialisé!");
+        Debug.Log("✅ Setup réinitialisé!");
     }
 
     // Méthode statique pour vérifier si le setup est complet
     public static bool IsSetupComplete()
     {
+        bool hasLanguage = PlayerPrefs.HasKey("GameLanguage") && !string.IsNullOrEmpty(PlayerPrefs.GetString("GameLanguage"));
         bool hasUsername = PlayerPrefs.HasKey("PlayerName") && !string.IsNullOrEmpty(PlayerPrefs.GetString("PlayerName"));
-        bool hasAvatar = PlayerPrefs.HasKey("SelectedAvatarId");
-        bool hasCountry = PlayerPrefs.HasKey("SelectedCountryId");
+        bool hasAvatar = PlayerPrefs.HasKey("SelectedAvatarId") && PlayerPrefs.GetInt("SelectedAvatarId", -1) > 0;
+        bool hasCountry = PlayerPrefs.HasKey("SelectedCountryId") && PlayerPrefs.GetInt("SelectedCountryId", -1) >= 0;
 
-        return hasUsername && hasAvatar && hasCountry;
+        return hasLanguage && hasUsername && hasAvatar && hasCountry;
     }
 
     // Méthode pour forcer le rechargement du setup
     public static void RedoSetup()
     {
+        PlayerPrefs.DeleteKey("GameLanguage");
         PlayerPrefs.DeleteKey("PlayerName");
         PlayerPrefs.DeleteKey("SelectedAvatarId");
         PlayerPrefs.DeleteKey("SelectedCountryId");
+        PlayerPrefs.DeleteKey("SetupCompleted");
         PlayerPrefs.Save();
 
         SceneManager.LoadScene("InitialSetup");
+    }
+
+    // Méthode pour tester le flow (utile en développement)
+    [ContextMenu("Tester Flow Complet")]
+    public void TestCompleteFlow()
+    {
+        ResetAllSetup();
+        Debug.Log("⚠️ Redémarrez la scène InitialSetup pour tester le flow complet");
     }
 }
