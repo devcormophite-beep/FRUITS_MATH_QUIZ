@@ -41,7 +41,7 @@ public class LanguageSelector : MonoBehaviour
     public Color normalColor = Color.white;
     public Color hoverColor = new Color(0.9f, 0.9f, 0.9f, 1f);
     public bool showNativeNames = true;
-    public string nextSceneName = "MainMenu";
+    public string nextSceneName = "UsernameSetup"; // ✅ CORRIGÉ: Va vers UsernameSetup
 
     [Header("Effets Audio")]
     public AudioClip selectionSound;
@@ -398,8 +398,7 @@ public class LanguageSelector : MonoBehaviour
         }
 
         // Effet de sélection
-        LeanTween.scale(item, Vector3.one * 1.1f, 0.2f)
-            .setEaseOutBack();
+        LeanTween.scale(item, Vector3.one * 1.1f, 0.2f).setEaseOutBack();
 
         // Mettre à jour la prévisualisation
         UpdatePreview(languageCode);
@@ -522,11 +521,12 @@ public class LanguageSelector : MonoBehaviour
         PlayerPrefs.SetInt("HasSelectedLanguage", 1);
         PlayerPrefs.Save();
 
-        Debug.Log($"✓ Langue sauvegardée: {selectedLanguage}");
+        Debug.Log($"✅ Langue sauvegardée: {selectedLanguage}");
+        Debug.Log($"→ Redirection vers: {nextSceneName}");
 
         PlaySound(confirmSound);
 
-        // Charger la scène suivante
+        // Charger la scène suivante (UsernameSetup)
         LoadNextScene();
     }
 
@@ -538,8 +538,10 @@ public class LanguageSelector : MonoBehaviour
         PlayerPrefs.SetInt("HasSelectedLanguage", 1);
         PlayerPrefs.Save();
 
-        Debug.Log($"✓ Langue par défaut utilisée: {defaultLang}");
+        Debug.Log($"✅ Langue par défaut utilisée: {defaultLang}");
+        Debug.Log($"→ Redirection vers: {nextSceneName}");
 
+        // Charger la scène suivante (UsernameSetup)
         LoadNextScene();
     }
 
