@@ -1,11 +1,11 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using System;
 
 /// <summary>
 /// Service centralisé pour gérer toutes les données du jeu
-/// Singleton pour accès global
+/// VERSION CORRIGÉE : Synchronise avec PlayerPrefs pour le MainMenu
 /// </summary>
 public class DataService : MonoBehaviour
 {
@@ -44,9 +44,6 @@ public class DataService : MonoBehaviour
 
     // ========== GESTION DU JOUEUR ACTUEL ==========
 
-    /// <summary>
-    /// Charge ou crée le profil du joueur actuel
-    /// </summary>
     public void LoadAllData()
     {
         LoadCurrentPlayer();
@@ -55,36 +52,86 @@ public class DataService : MonoBehaviour
 
     void LoadCurrentPlayer()
     {
+        Debug.Log("========================================");
+        Debug.Log("📂 CHARGEMENT DU JOUEUR");
+        Debug.Log("========================================");
+
         if (PlayerPrefs.HasKey(CURRENT_PLAYER_KEY))
         {
+            // Charger depuis le JSON
             string json = PlayerPrefs.GetString(CURRENT_PLAYER_KEY);
             currentPlayer = JsonUtility.FromJson<PlayerData>(json);
-            Debug.Log($"✓ Joueur chargé: {currentPlayer.playerName}");
+            Debug.Log($"✓ Joueur chargé depuis JSON: {currentPlayer.playerName}");
+            Debug.Log($"  Score: {currentPlayer.totalScore}");
+            Debug.Log($"  Niveau: {currentPlayer.highestLevel}");
         }
         else
         {
-            // Créer un nouveau joueur avec les données existantes
+            // ✅ NOUVEAU: Créer depuis les PlayerPrefs existants
             string name = PlayerPrefs.GetString("PlayerName", "Joueur");
-            int avatarId = PlayerPrefs.GetInt("SelectedAvatarId", -1);
-            int countryId = PlayerPrefs.GetInt("SelectedCountryId", -1);
+            int avatarId = PlayerPrefs.GetInt("SelectedAvatarId", 1);
+            int countryId = PlayerPrefs.GetInt("SelectedCountryId", 1);
+            int score = PlayerPrefs.GetInt("TotalScore", 0);
+            int level = PlayerPrefs.GetInt("HighestLevel", 1);
+            int played = PlayerPrefs.GetInt("GamesPlayed", 0);
+            int won = PlayerPrefs.GetInt("GamesWon", 0);
 
             currentPlayer = new PlayerData(name, avatarId, countryId);
+            currentPlayer.totalScore = score;
+            currentPlayer.highestLevel = level;
+            currentPlayer.gamesPlayed = played;
+            currentPlayer.gamesWon = won;
+
+            Debug.Log("✓ Nouveau joueur créé avec données existantes:");
+            Debug.Log($"  Nom: {name}");
+            Debug.Log($"  Avatar: {avatarId}");
+            Debug.Log($"  Pays: {countryId}");
+            Debug.Log($"  Score: {score}");
+
             SaveCurrentPlayer();
-            Debug.Log("✓ Nouveau joueur créé");
         }
+
+        Debug.Log("========================================\n");
     }
 
     public void SaveCurrentPlayer()
     {
-        if (currentPlayer == null) return;
+        if (currentPlayer == null)
+        {
+            Debug.LogWarning("⚠️ Tentative de sauvegarde avec currentPlayer null!");
+            return;
+        }
 
         currentPlayer.lastPlayedDate = DateTime.Now;
+
+        // 1. Sauvegarder le JSON (pour le système DataService)
         string json = JsonUtility.ToJson(currentPlayer);
         PlayerPrefs.SetString(CURRENT_PLAYER_KEY, json);
+
+        // ✅ 2. NOUVEAU: Synchroniser avec PlayerPrefs individuels (pour MainMenu)
+        PlayerPrefs.SetString("PlayerName", currentPlayer.playerName);
+        PlayerPrefs.SetInt("SelectedAvatarId", currentPlayer.avatarId);
+        PlayerPrefs.SetInt("SelectedCountryId", currentPlayer.countryId);
+        PlayerPrefs.SetInt("TotalScore", currentPlayer.totalScore);
+        PlayerPrefs.SetInt("HighestLevel", currentPlayer.highestLevel);
+        PlayerPrefs.SetInt("GamesPlayed", currentPlayer.gamesPlayed);
+        PlayerPrefs.SetInt("GamesWon", currentPlayer.gamesWon);
+
         PlayerPrefs.Save();
 
         // Mettre à jour aussi dans la liste globale
         UpdatePlayerInGlobalList(currentPlayer);
+
+        Debug.Log("========================================");
+        Debug.Log("💾 SAUVEGARDE SYNCHRONISÉE");
+        Debug.Log("========================================");
+        Debug.Log($"Joueur: {currentPlayer.playerName}");
+        Debug.Log($"Score: {currentPlayer.totalScore}");
+        Debug.Log($"Niveau: {currentPlayer.highestLevel}");
+        Debug.Log($"Parties: {currentPlayer.gamesPlayed} (Gagnées: {currentPlayer.gamesWon})");
+        Debug.Log($"WinRate: {currentPlayer.GetWinRate():F1}%");
+        Debug.Log("✅ JSON + PlayerPrefs individuels synchronisés");
+        Debug.Log("========================================\n");
     }
 
     public PlayerData GetCurrentPlayer()
@@ -94,34 +141,57 @@ public class DataService : MonoBehaviour
 
     public void UpdateCurrentPlayerProfile(string name, int avatarId, int countryId)
     {
-        if (currentPlayer == null) return;
+        if (currentPlayer == null)
+        {
+            Debug.LogWarning("⚠️ currentPlayer est null dans UpdateCurrentPlayerProfile");
+            return;
+        }
 
         currentPlayer.playerName = name;
         currentPlayer.avatarId = avatarId;
         currentPlayer.countryId = countryId;
         SaveCurrentPlayer();
+
+        Debug.Log($"✅ Profil mis à jour: {name}, Avatar: {avatarId}, Pays: {countryId}");
     }
 
     public void AddScore(int points)
     {
-        if (currentPlayer == null) return;
+        if (currentPlayer == null)
+        {
+            Debug.LogWarning("⚠️ currentPlayer est null dans AddScore");
+            return;
+        }
+
         currentPlayer.totalScore += points;
         SaveCurrentPlayer();
+
+        Debug.Log($"✅ Score ajouté: +{points} → Total: {currentPlayer.totalScore}");
     }
 
     public void UpdateLevel(int level)
     {
-        if (currentPlayer == null) return;
+        if (currentPlayer == null)
+        {
+            Debug.LogWarning("⚠️ currentPlayer est null dans UpdateLevel");
+            return;
+        }
+
         if (level > currentPlayer.highestLevel)
         {
             currentPlayer.highestLevel = level;
             SaveCurrentPlayer();
+            Debug.Log($"✅ Nouveau niveau max: {level}");
         }
     }
 
     public void RecordGameResult(bool won, int correctAnswers, int wrongAnswers, float avgTime)
     {
-        if (currentPlayer == null) return;
+        if (currentPlayer == null)
+        {
+            Debug.LogWarning("⚠️ currentPlayer est null dans RecordGameResult");
+            return;
+        }
 
         currentPlayer.gamesPlayed++;
         if (won) currentPlayer.gamesWon++;
@@ -138,6 +208,17 @@ public class DataService : MonoBehaviour
         }
 
         SaveCurrentPlayer();
+
+        Debug.Log("========================================");
+        Debug.Log("📊 RÉSULTAT DE LA PARTIE");
+        Debug.Log("========================================");
+        Debug.Log($"Résultat: {(won ? "✅ VICTOIRE" : "❌ DÉFAITE")}");
+        Debug.Log($"Bonnes réponses: {correctAnswers}");
+        Debug.Log($"Mauvaises réponses: {wrongAnswers}");
+        Debug.Log($"Temps moyen: {avgTime:F1}s");
+        Debug.Log($"Total parties: {currentPlayer.gamesPlayed}");
+        Debug.Log($"WinRate: {currentPlayer.GetWinRate():F1}%");
+        Debug.Log("========================================\n");
     }
 
     // ========== GESTION DU LEADERBOARD GLOBAL ==========
@@ -303,13 +384,75 @@ public class DataService : MonoBehaviour
     /// </summary>
     public void ResetAllData()
     {
+        Debug.LogWarning("========================================");
+        Debug.LogWarning("🗑️ RÉINITIALISATION COMPLÈTE");
+        Debug.LogWarning("========================================");
+
         PlayerPrefs.DeleteKey(CURRENT_PLAYER_KEY);
         PlayerPrefs.DeleteKey(ALL_PLAYERS_KEY);
+
+        // ✅ NOUVEAU: Supprimer aussi les PlayerPrefs individuels
+        PlayerPrefs.DeleteKey("PlayerName");
+        PlayerPrefs.DeleteKey("SelectedAvatarId");
+        PlayerPrefs.DeleteKey("SelectedCountryId");
+        PlayerPrefs.DeleteKey("TotalScore");
+        PlayerPrefs.DeleteKey("HighestLevel");
+        PlayerPrefs.DeleteKey("GamesPlayed");
+        PlayerPrefs.DeleteKey("GamesWon");
+
         PlayerPrefs.Save();
 
         allPlayers.Clear();
         currentPlayer = null;
 
-        Debug.Log("✓ Toutes les données ont été réinitialisées");
+        Debug.LogWarning("✅ Toutes les données ont été réinitialisées");
+        Debug.LogWarning("========================================\n");
+    }
+
+    // ========== MÉTHODES DE DEBUG ==========
+
+    public void PrintCurrentPlayerInfo()
+    {
+        if (currentPlayer == null)
+        {
+            Debug.Log("❌ Aucun joueur actuel");
+            return;
+        }
+
+        Debug.Log("========================================");
+        Debug.Log("👤 INFORMATIONS DU JOUEUR ACTUEL");
+        Debug.Log("========================================");
+        Debug.Log($"ID: {currentPlayer.playerId}");
+        Debug.Log($"Nom: {currentPlayer.playerName}");
+        Debug.Log($"Avatar: {currentPlayer.avatarId}");
+        Debug.Log($"Pays: {currentPlayer.countryId}");
+        Debug.Log($"Score: {currentPlayer.totalScore}");
+        Debug.Log($"Niveau max: {currentPlayer.highestLevel}");
+        Debug.Log($"Parties jouées: {currentPlayer.gamesPlayed}");
+        Debug.Log($"Parties gagnées: {currentPlayer.gamesWon}");
+        Debug.Log($"WinRate: {currentPlayer.GetWinRate():F1}%");
+        Debug.Log($"Précision: {currentPlayer.GetAccuracy():F1}%");
+        Debug.Log($"Créé le: {currentPlayer.createdDate}");
+        Debug.Log($"Dernière partie: {currentPlayer.lastPlayedDate}");
+        Debug.Log("========================================\n");
+    }
+
+    [ContextMenu("Print Current Player")]
+    public void DebugPrintPlayer()
+    {
+        PrintCurrentPlayerInfo();
+    }
+
+    [ContextMenu("Add 1000 Score")]
+    public void DebugAddScore()
+    {
+        AddScore(1000);
+        PrintCurrentPlayerInfo();
+    }
+
+    [ContextMenu("Generate 20 Dummy Players")]
+    public void DebugGenerateDummies()
+    {
+        GenerateDummyPlayers(20);
     }
 }
