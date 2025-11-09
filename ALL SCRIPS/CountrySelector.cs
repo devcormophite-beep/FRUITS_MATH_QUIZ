@@ -1,8 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.SceneManagement; // ✅ AJOUTÉ
 
 public class CountrySelector : MonoBehaviour
 {
@@ -18,9 +19,10 @@ public class CountrySelector : MonoBehaviour
     public float itemHeight = 80f;
     public Color selectedColor = Color.green;
     public Color normalColor = Color.white;
+    public string nextSceneName = "MainMenu"; // ✅ AJOUTÉ
 
     [Header("Langue")]
-    public string currentLanguage = "fr"; // fr, en, ru, es, pt
+    public string currentLanguage = "fr";
     public Button btnFrench;
     public Button btnEnglish;
     public Button btnRussian;
@@ -37,7 +39,6 @@ public class CountrySelector : MonoBehaviour
 
     void Start()
     {
-        // Charger la langue sauvegardée
         if (PlayerPrefs.HasKey("GameLanguage"))
         {
             currentLanguage = PlayerPrefs.GetString("GameLanguage", "fr");
@@ -57,10 +58,7 @@ public class CountrySelector : MonoBehaviour
             confirmButton.interactable = false;
         }
 
-        // Setup boutons de langue
         SetupLanguageButtons();
-
-        // Charger le pays sauvegardé
         LoadSavedCountry();
     }
 
@@ -88,28 +86,23 @@ public class CountrySelector : MonoBehaviour
         PlayerPrefs.SetString("GameLanguage", langCode);
         PlayerPrefs.Save();
 
-        Debug.Log($"Langue changée: {langCode}");
+        Debug.Log($"✓ Langue changée: {langCode}");
 
-        // Recréer les items avec la nouvelle langue
         RefreshCountryItems();
     }
 
     void RefreshCountryItems()
     {
-        // Sauvegarder la sélection actuelle
         int previousSelection = selectedCountryId;
 
-        // Supprimer les anciens items
         foreach (var item in countryItems)
         {
             Destroy(item);
         }
         countryItems.Clear();
 
-        // Recréer les items
         CreateCountryItems();
 
-        // Restaurer la sélection
         if (previousSelection != -1)
         {
             var country = allCountries.Find(c => c.id == previousSelection);
@@ -130,7 +123,7 @@ public class CountrySelector : MonoBehaviour
 
         if (jsonFile == null)
         {
-            Debug.LogError("Fichier Pays.json non trouvé dans Resources!");
+            Debug.LogError("❌ Fichier Pays.json non trouvé dans Resources!");
             return;
         }
 
@@ -141,8 +134,6 @@ public class CountrySelector : MonoBehaviour
             if (wrapper != null && wrapper.countries != null)
             {
                 allCountries = wrapper.countries;
-
-                // Trier par nom selon la langue actuelle
                 allCountries = allCountries.OrderBy(c => c.GetName(currentLanguage)).ToList();
 
                 Debug.Log($"✓ {allCountries.Count} pays chargés avec succès");
@@ -154,12 +145,12 @@ public class CountrySelector : MonoBehaviour
             }
             else
             {
-                Debug.LogError("Erreur de parsing du JSON");
+                Debug.LogError("❌ Erreur de parsing du JSON");
             }
         }
         catch (System.Exception e)
         {
-            Debug.LogError($"Erreur lors du chargement du JSON: {e.Message}");
+            Debug.LogError($"❌ Erreur lors du chargement du JSON: {e.Message}");
             Debug.LogError($"Stack trace: {e.StackTrace}");
         }
     }
@@ -168,7 +159,7 @@ public class CountrySelector : MonoBehaviour
     {
         if (allCountries.Count == 0)
         {
-            Debug.LogWarning("Aucun pays à afficher");
+            Debug.LogWarning("⚠️ Aucun pays à afficher");
             return;
         }
 
@@ -182,15 +173,13 @@ public class CountrySelector : MonoBehaviour
     {
         GameObject item = Instantiate(countryItemPrefab, countriesContainer);
 
-        // Charger le drapeau
         Sprite flag = Resources.Load<Sprite>($"Flags/{country.id}");
 
         if (flag == null)
         {
-            Debug.LogWarning($"Drapeau non trouvé pour {country.GetName(currentLanguage)} (ID: {country.id})");
+            Debug.LogWarning($"⚠️ Drapeau non trouvé pour {country.GetName(currentLanguage)} (ID: {country.id})");
         }
 
-        // Configurer l'item
         Image flagImage = item.transform.Find("FlagImage")?.GetComponent<Image>();
         TextMeshProUGUI nameText = item.transform.Find("CountryName")?.GetComponent<TextMeshProUGUI>();
         Button button = item.GetComponent<Button>();
@@ -212,7 +201,6 @@ public class CountrySelector : MonoBehaviour
             button.onClick.AddListener(() => OnCountryClicked(country, item));
         }
 
-        // Stocker l'item avec ses données
         item.name = $"Country_{country.id}";
 
         countryItems.Add(item);
@@ -220,7 +208,6 @@ public class CountrySelector : MonoBehaviour
 
     void OnCountryClicked(CountryData country, GameObject item)
     {
-        // Désélectionner l'ancien item
         if (selectedCountryId != -1)
         {
             foreach (var countryItem in countryItems)
@@ -233,7 +220,6 @@ public class CountrySelector : MonoBehaviour
             }
         }
 
-        // Sélectionner le nouveau
         selectedCountryId = country.id;
         selectedCountryName = country.GetName(currentLanguage);
 
@@ -253,7 +239,7 @@ public class CountrySelector : MonoBehaviour
             confirmButton.interactable = true;
         }
 
-        Debug.Log($"Pays sélectionné: {selectedCountryName} (ID: {country.id})");
+        Debug.Log($"✓ Pays sélectionné: {selectedCountryName} (ID: {country.id})");
     }
 
     string GetLocalizedText(string key)
@@ -279,7 +265,6 @@ public class CountrySelector : MonoBehaviour
     {
         if (string.IsNullOrEmpty(searchText))
         {
-            // Afficher tous les pays
             foreach (var item in countryItems)
             {
                 item.SetActive(true);
@@ -287,7 +272,6 @@ public class CountrySelector : MonoBehaviour
             return;
         }
 
-        // Filtrer les pays
         string search = searchText.ToLower();
 
         for (int i = 0; i < countryItems.Count; i++)
@@ -295,7 +279,6 @@ public class CountrySelector : MonoBehaviour
             var item = countryItems[i];
             var country = allCountries[i];
 
-            // Rechercher dans toutes les langues pour plus de flexibilité
             bool matches = country.fr.ToLower().Contains(search) ||
                           country.en.ToLower().Contains(search) ||
                           country.ru.ToLower().Contains(search) ||
@@ -310,18 +293,22 @@ public class CountrySelector : MonoBehaviour
     {
         if (selectedCountryId == -1)
         {
-            Debug.LogWarning("Aucun pays sélectionné");
+            Debug.LogWarning("⚠️ Aucun pays sélectionné");
             return;
         }
 
-        // AJOUT : Utiliser PlayerPrefsManager
+        // Sauvegarder via PlayerPrefsManager
         PlayerPrefsManager.Instance.SetCountryId(selectedCountryId);
         PlayerPrefsManager.Instance.SetCountryName(selectedCountryName);
 
-        Debug.Log($"Pays confirmé et sauvegardé: {selectedCountryName}");
+        Debug.Log($"✅ Pays confirmé et sauvegardé: {selectedCountryName}");
+        Debug.Log($"→ Chargement de la scène: {nextSceneName}");
 
         // Déclencher l'événement
         onCountrySelected?.Invoke(selectedCountryName);
+
+        // ✅ AJOUTÉ: Charger la scène suivante
+        SceneManager.LoadScene(nextSceneName);
     }
 
     void LoadSavedCountry()
@@ -331,9 +318,8 @@ public class CountrySelector : MonoBehaviour
             int savedId = PlayerPrefs.GetInt("SelectedCountryId");
             string savedName = PlayerPrefs.GetString("SelectedCountryName", "");
 
-            Debug.Log($"Pays sauvegardé trouvé: {savedName} (ID: {savedId})");
+            Debug.Log($"✓ Pays sauvegardé trouvé: {savedName} (ID: {savedId})");
 
-            // Sélectionner automatiquement ce pays
             var savedCountry = allCountries.Find(c => c.id == savedId);
             if (savedCountry != null)
             {
