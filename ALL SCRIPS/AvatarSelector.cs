@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement; // ✅ AJOUTÉ
 
 public class AvatarSelector : MonoBehaviour
 {
@@ -17,7 +18,8 @@ public class AvatarSelector : MonoBehaviour
     public float itemSize = 100f;
     public Color selectedColor = new Color(0.3f, 0.8f, 1f, 1f);
     public Color normalColor = Color.white;
-    public int columns = 3; // Nombre de colonnes dans la grille
+    public int columns = 3;
+    public string nextSceneName = "CountrySelection"; // ✅ AJOUTÉ
 
     [Header("Événements")]
     public UnityEngine.Events.UnityEvent<int> onAvatarSelected;
@@ -37,7 +39,6 @@ public class AvatarSelector : MonoBehaviour
             confirmButton.interactable = false;
         }
 
-        // Charger l'avatar sauvegardé
         LoadSavedAvatar();
     }
 
@@ -52,7 +53,7 @@ public class AvatarSelector : MonoBehaviour
 
         if (sprites.Length == 0)
         {
-            Debug.LogError("ERREUR: Aucun avatar trouvé dans Resources/Avatars!");
+            Debug.LogError("❌ ERREUR: Aucun avatar trouvé dans Resources/Avatars!");
             Debug.LogError("Assurez-vous que:");
             Debug.LogError("1. Le dossier 'Resources/Avatars' existe");
             Debug.LogError("2. Vos images sont au format PNG");
@@ -62,7 +63,6 @@ public class AvatarSelector : MonoBehaviour
 
         Debug.Log($"Trouvé {sprites.Length} avatars");
 
-        // Créer un dictionnaire pour trier par numéro
         Dictionary<int, Sprite> sortedAvatars = new Dictionary<int, Sprite>();
 
         foreach (Sprite sprite in sprites)
@@ -80,7 +80,6 @@ public class AvatarSelector : MonoBehaviour
             }
         }
 
-        // Trier et ajouter à la liste
         for (int i = 1; i <= sortedAvatars.Count; i++)
         {
             if (sortedAvatars.ContainsKey(i))
@@ -98,11 +97,10 @@ public class AvatarSelector : MonoBehaviour
     {
         if (availableAvatars.Count == 0)
         {
-            Debug.LogWarning("Aucun avatar à afficher");
+            Debug.LogWarning("⚠️ Aucun avatar à afficher");
             return;
         }
 
-        // Configurer le Grid Layout
         GridLayoutGroup grid = avatarsContainer.GetComponent<GridLayoutGroup>();
         if (grid != null)
         {
@@ -112,7 +110,6 @@ public class AvatarSelector : MonoBehaviour
             grid.constraintCount = columns;
         }
 
-        // Créer les items
         for (int i = 0; i < availableAvatars.Count; i++)
         {
             CreateAvatarItem(i + 1, availableAvatars[i]);
@@ -122,8 +119,7 @@ public class AvatarSelector : MonoBehaviour
     void CreateAvatarItem(int avatarId, Sprite avatarSprite)
     {
         GameObject item = Instantiate(avatarItemPrefab, avatarsContainer);
-        
-        // Configurer l'image de l'avatar
+
         Image avatarImage = item.transform.Find("AvatarImage")?.GetComponent<Image>();
         Button button = item.GetComponent<Button>();
         Image background = item.GetComponent<Image>();
@@ -136,18 +132,16 @@ public class AvatarSelector : MonoBehaviour
 
         if (button != null)
         {
-            int id = avatarId; // Capture locale pour le delegate
+            int id = avatarId;
             button.onClick.AddListener(() => OnAvatarClicked(id, avatarSprite, item));
         }
 
-        // Stocker l'item
         item.name = $"Avatar_{avatarId}";
         avatarItems.Add(item);
     }
 
     void OnAvatarClicked(int avatarId, Sprite avatarSprite, GameObject item)
     {
-        // Désélectionner tous les avatars
         foreach (var avatarItem in avatarItems)
         {
             Image bg = avatarItem.GetComponent<Image>();
@@ -156,11 +150,9 @@ public class AvatarSelector : MonoBehaviour
                 bg.color = normalColor;
             }
 
-            // Remettre la taille normale
             avatarItem.transform.localScale = Vector3.one;
         }
 
-        // Sélectionner le nouveau
         selectedAvatarId = avatarId;
 
         Image background = item.GetComponent<Image>();
@@ -169,10 +161,8 @@ public class AvatarSelector : MonoBehaviour
             background.color = selectedColor;
         }
 
-        // Effet de zoom
         item.transform.localScale = Vector3.one * 1.1f;
 
-        // Mettre à jour la prévisualisation
         if (selectedAvatarPreview != null)
         {
             selectedAvatarPreview.sprite = avatarSprite;
@@ -189,24 +179,28 @@ public class AvatarSelector : MonoBehaviour
             confirmButton.interactable = true;
         }
 
-        Debug.Log($"Avatar sélectionné: #{avatarId}");
+        Debug.Log($"✓ Avatar sélectionné: #{avatarId}");
     }
 
     void OnConfirmClicked()
     {
         if (selectedAvatarId == -1)
         {
-            Debug.LogWarning("Aucun avatar sélectionné");
+            Debug.LogWarning("⚠️ Aucun avatar sélectionné");
             return;
         }
 
-        // AJOUT : Utiliser PlayerPrefsManager
+        // Sauvegarder via PlayerPrefsManager
         PlayerPrefsManager.Instance.SetAvatarId(selectedAvatarId);
 
-        Debug.Log($"Avatar confirmé et sauvegardé: #{selectedAvatarId}");
+        Debug.Log($"✅ Avatar confirmé et sauvegardé: #{selectedAvatarId}");
+        Debug.Log($"→ Chargement de la scène: {nextSceneName}");
 
         // Déclencher l'événement
         onAvatarSelected?.Invoke(selectedAvatarId);
+
+        // ✅ AJOUTÉ: Charger la scène suivante
+        SceneManager.LoadScene(nextSceneName);
     }
 
     void LoadSavedAvatar()
@@ -214,9 +208,8 @@ public class AvatarSelector : MonoBehaviour
         if (PlayerPrefs.HasKey("SelectedAvatarId"))
         {
             int savedId = PlayerPrefs.GetInt("SelectedAvatarId");
-            Debug.Log($"Avatar sauvegardé trouvé: #{savedId}");
+            Debug.Log($"✓ Avatar sauvegardé trouvé: #{savedId}");
 
-            // Sélectionner automatiquement cet avatar
             if (savedId > 0 && savedId <= availableAvatars.Count)
             {
                 var item = avatarItems.Find(i => i.name == $"Avatar_{savedId}");
@@ -230,7 +223,6 @@ public class AvatarSelector : MonoBehaviour
 
     string GetLocalizedText(string key)
     {
-        // Récupérer la langue depuis le CountrySelector si disponible
         string lang = PlayerPrefs.GetString("GameLanguage", "fr");
 
         switch (key)
@@ -330,7 +322,6 @@ public class AvatarSelector : MonoBehaviour
         return availableAvatars.Count;
     }
 
-    // Déverrouiller des avatars (pour progression du jeu)
     public void UnlockAvatar(int avatarId)
     {
         PlayerPrefs.SetInt($"Avatar_{avatarId}_Unlocked", 1);
@@ -339,8 +330,6 @@ public class AvatarSelector : MonoBehaviour
 
     public bool IsAvatarUnlocked(int avatarId)
     {
-        // Par défaut, tous sont déverrouillés
-        // Vous pouvez changer cette logique selon vos besoins
         return PlayerPrefs.GetInt($"Avatar_{avatarId}_Unlocked", 1) == 1;
     }
 }
