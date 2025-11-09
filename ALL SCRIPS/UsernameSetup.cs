@@ -21,19 +21,22 @@ public class UsernameSetup : MonoBehaviour
     public bool allowSpaces = false;
     public bool allowSpecialCharacters = false;
     public string defaultUsername = "Joueur";
-    public string nextSceneName = "MainMenu";
+    public string nextSceneName = "AvatarSelection";
 
     [Header("Effets visuels")]
     public Color validColor = Color.green;
     public Color invalidColor = Color.red;
     public Color normalColor = Color.white;
     public GameObject loadingPanel;
-    public Animator inputAnimator; // Optionnel pour animations
+    public Animator inputAnimator;
 
     [Header("Audio")]
     public AudioClip validationSound;
     public AudioClip errorSound;
     public AudioClip typeSound;
+
+    [Header("LootLocker")]
+    public bool updateLootLockerName = true; // ✅ NOUVEAU
 
     private AudioSource audioSource;
     private bool isValid = false;
@@ -41,18 +44,13 @@ public class UsernameSetup : MonoBehaviour
 
     void Start()
     {
-        // Charger la langue
         currentLanguage = PlayerPrefs.GetString("GameLanguage", "fr");
-
-        // Setup Audio
         audioSource = gameObject.AddComponent<AudioSource>();
         audioSource.playOnAwake = false;
 
-        // Setup UI
         SetupUI();
         UpdateLocalizedTexts();
 
-        // Vérifier si le joueur a déjà un pseudo
         if (PlayerPrefs.HasKey("PlayerName") && !string.IsNullOrEmpty(PlayerPrefs.GetString("PlayerName")))
         {
             string savedName = PlayerPrefs.GetString("PlayerName");
@@ -60,34 +58,29 @@ public class UsernameSetup : MonoBehaviour
             Debug.Log($"Pseudo existant chargé: {savedName}");
         }
 
-        // Événements
         usernameInputField.onValueChanged.AddListener(OnUsernameChanged);
         usernameInputField.onEndEdit.AddListener(OnUsernameEndEdit);
         continueButton.onClick.AddListener(OnContinueClicked);
-        
+
         if (skipButton != null)
         {
             skipButton.onClick.AddListener(OnSkipClicked);
         }
 
-        // Focus sur le champ
         usernameInputField.Select();
         usernameInputField.ActivateInputField();
     }
 
     void SetupUI()
     {
-        // Configuration de l'InputField
         usernameInputField.characterLimit = maxCharacters;
         usernameInputField.contentType = TMP_InputField.ContentType.Standard;
 
-        // Désactiver le bouton continuer au départ si pas de pseudo
         if (string.IsNullOrEmpty(usernameInputField.text))
         {
             continueButton.interactable = false;
         }
 
-        // Cacher le message d'erreur
         if (errorMessageText != null)
         {
             errorMessageText.gameObject.SetActive(false);
@@ -127,13 +120,8 @@ public class UsernameSetup : MonoBehaviour
 
     void OnUsernameChanged(string username)
     {
-        // Jouer son de frappe
         PlaySound(typeSound);
-
-        // Valider en temps réel
         ValidateUsername(username);
-
-        // Mettre à jour le compteur de caractères
         UpdateCharacterCount(username.Length);
     }
 
@@ -144,13 +132,11 @@ public class UsernameSetup : MonoBehaviour
 
     void ValidateUsername(string username)
     {
-        // Effacer l'ancien message d'erreur
         if (errorMessageText != null)
         {
             errorMessageText.gameObject.SetActive(false);
         }
 
-        // Vérifier si vide
         if (string.IsNullOrEmpty(username))
         {
             SetInputFieldColor(normalColor);
@@ -159,7 +145,6 @@ public class UsernameSetup : MonoBehaviour
             return;
         }
 
-        // Vérifier la longueur minimum
         if (username.Length < minCharacters)
         {
             ShowError(GetLocalizedText("error_too_short").Replace("{min}", minCharacters.ToString()));
@@ -169,7 +154,6 @@ public class UsernameSetup : MonoBehaviour
             return;
         }
 
-        // Vérifier la longueur maximum
         if (username.Length > maxCharacters)
         {
             ShowError(GetLocalizedText("error_too_long").Replace("{max}", maxCharacters.ToString()));
@@ -179,7 +163,6 @@ public class UsernameSetup : MonoBehaviour
             return;
         }
 
-        // Vérifier les espaces
         if (!allowSpaces && username.Contains(" "))
         {
             ShowError(GetLocalizedText("error_no_spaces"));
@@ -189,7 +172,6 @@ public class UsernameSetup : MonoBehaviour
             return;
         }
 
-        // Vérifier les caractères spéciaux
         if (!allowSpecialCharacters)
         {
             string pattern = @"^[a-zA-Z0-9_]+$";
@@ -203,7 +185,6 @@ public class UsernameSetup : MonoBehaviour
             }
         }
 
-        // Vérifier les mots interdits (optionnel)
         if (ContainsBadWords(username))
         {
             ShowError(GetLocalizedText("error_inappropriate"));
@@ -213,7 +194,6 @@ public class UsernameSetup : MonoBehaviour
             return;
         }
 
-        // Tout est valide !
         SetInputFieldColor(validColor);
         continueButton.interactable = true;
         isValid = true;
@@ -249,7 +229,6 @@ public class UsernameSetup : MonoBehaviour
         {
             characterCountText.text = $"{currentLength}/{maxCharacters}";
 
-            // Changer la couleur selon la longueur
             if (currentLength < minCharacters)
             {
                 characterCountText.color = invalidColor;
@@ -276,31 +255,66 @@ public class UsernameSetup : MonoBehaviour
 
         string username = usernameInputField.text.Trim();
 
-        // Sauvegarder le pseudo
+        // Sauvegarder localement
         PlayerPrefs.SetString("PlayerName", username);
         PlayerPrefs.SetInt("HasCompletedSetup", 1);
         PlayerPrefs.Save();
 
-        Debug.Log($"Pseudo sauvegardé: {username}");
+        Debug.Log($"✅ Pseudo sauvegardé: {username}");
 
-        // Son de validation
+        // ✅ NOUVEAU: Mettre à jour LootLocker immédiatement
+        if (updateLootLockerName)
+        {
+            UpdateLootLockerName(username);
+        }
+
         PlaySound(validationSound);
-
-        // Charger la scène suivante
         LoadNextScene();
     }
 
     void OnSkipClicked()
     {
-        // Utiliser le pseudo par défaut
         PlayerPrefs.SetString("PlayerName", defaultUsername);
         PlayerPrefs.SetInt("HasCompletedSetup", 1);
         PlayerPrefs.Save();
 
-        Debug.Log($"Pseudo par défaut utilisé: {defaultUsername}");
+        Debug.Log($"✅ Pseudo par défaut utilisé: {defaultUsername}");
+
+        // ✅ NOUVEAU: Mettre à jour LootLocker avec le nom par défaut
+        if (updateLootLockerName)
+        {
+            UpdateLootLockerName(defaultUsername);
+        }
 
         LoadNextScene();
     }
+
+    // ========== SYNCHRONISATION AVEC LOOTLOCKER ==========
+
+    void UpdateLootLockerName(string username)
+    {
+        var lootlocker = LootLockerService.Instance;
+
+        if (lootlocker == null)
+        {
+            Debug.LogWarning("⚠️ LootLockerService non disponible");
+            return;
+        }
+
+        if (!lootlocker.isAuthenticated)
+        {
+            Debug.LogWarning("⚠️ LootLocker non authentifié, le nom sera synchronisé plus tard");
+            return;
+        }
+
+        Debug.Log($"🔄 Envoi du nom à LootLocker: {username}");
+
+        lootlocker.SetPlayerName(username);
+
+        Debug.Log($"✅ Nom envoyé à LootLocker: {username}");
+    }
+
+    // ========== NAVIGATION ==========
 
     void LoadNextScene()
     {
@@ -309,7 +323,6 @@ public class UsernameSetup : MonoBehaviour
             loadingPanel.SetActive(true);
         }
 
-        // Petit délai pour l'effet visuel
         Invoke(nameof(LoadScene), 0.5f);
     }
 
@@ -320,7 +333,6 @@ public class UsernameSetup : MonoBehaviour
 
     bool ContainsBadWords(string username)
     {
-        // Liste de mots interdits (à personnaliser selon vos besoins)
         string[] badWords = { "admin", "root", "moderator", "test" };
 
         string lowerUsername = username.ToLower();
@@ -462,13 +474,11 @@ public class UsernameSetup : MonoBehaviour
         }
     }
 
-    // Méthode publique pour vérifier si le setup est terminé
     public static bool HasCompletedSetup()
     {
         return PlayerPrefs.GetInt("HasCompletedSetup", 0) == 1;
     }
 
-    // Réinitialiser le setup (pour le développement)
     public static void ResetSetup()
     {
         PlayerPrefs.DeleteKey("HasCompletedSetup");
