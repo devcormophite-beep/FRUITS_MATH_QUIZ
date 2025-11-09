@@ -96,9 +96,22 @@ public class LeaderboardManager : MonoBehaviour
             yield break;
         }
 
+        // ✅ NOUVEAU: Synchroniser le nom AVANT d'envoyer le score
+        string playerName = PlayerPrefsManager.Instance.GetPlayerName();
+
+        if (lootLocker.isAuthenticated && lootLocker.currentPlayerName != playerName)
+        {
+            if (showDebugLogs)
+            {
+                Debug.Log($"🔄 Mise à jour du nom LootLocker: '{lootLocker.currentPlayerName}' → '{playerName}'");
+            }
+
+            lootLocker.SetPlayerName(playerName);
+            yield return new WaitForSeconds(0.5f); // Attendre que le nom soit mis à jour
+        }
+
         // Récupérer le score actuel depuis PlayerPrefsManager
         int currentScore = PlayerPrefsManager.Instance.GetTotalScore();
-        string playerName = PlayerPrefsManager.Instance.GetPlayerName();
 
         if (showDebugLogs)
         {
